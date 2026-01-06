@@ -1,95 +1,83 @@
-# Voice Call Agent
+# 🎤 NovaTech Solutions - AI Voice Call Agent
 
-A full-stack voice-enabled AI assistant built with **LangChain + Groq** backend and **React** frontend.
+An intelligent voice-enabled customer support agent that answers company-specific questions using **Retrieval-Augmented Generation (RAG)**.
 
-## Features
+![Voice Agent Demo](https://img.shields.io/badge/AI-Voice%20Agent-purple?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.10+-blue?style=flat-square&logo=python)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
+![LangChain](https://img.shields.io/badge/LangChain-RAG-green?style=flat-square)
 
-- 🎤 **Voice Input** - Speech-to-Text using Web Speech API
-- 🔊 **Voice Output** - Text-to-Speech for assistant responses
-- 💬 **Real-time Chat** - WebSocket communication for instant responses
-- 🤖 **AI Agent** - LangChain agent with Groq LLM (llama-3.1-70b)
-- 🎨 **Modern UI** - Premium dark theme with glassmorphism effects
+---
 
-## Prerequisites
+## 🚀 Overview
 
-- Python 3.9+
-- Node.js 20.19+ or 22.12+
-- Groq API Key (get from https://console.groq.com/)
+This project is a **full-stack AI voice assistant** built for NovaTech Solutions. Users can have natural voice conversations with the agent, which retrieves accurate information from company documents to answer questions.
 
-## Setup
+### ✨ Key Features
 
-### 1. Backend Setup
+- �️ **Voice Input** - Speak naturally using your microphone
+- 🔊 **Voice Output** - Responses are read aloud automatically
+- 🧠 **RAG-Powered** - Answers extracted from company PDF documents
+- 💬 **Real-time Chat** - Instant responses via WebSocket
+- 🎯 **Company-Focused** - Only answers NovaTech-related questions
+- � **Modern UI** - Premium dark theme with glassmorphism
 
-```bash
-cd backend
+---
 
-# Create virtual environment (optional but recommended)
-python -m venv venv
-venv\Scripts\activate  # Windows
-# source venv/bin/activate  # Linux/Mac
+## 🛠️ Tech Stack
 
-# Install dependencies
-pip install -r requirements.txt
+| Layer | Technology |
+|-------|------------|
+| **Backend** | Python, FastAPI, LangChain, Groq (Llama 3.3 70B) |
+| **Frontend** | React 18, Vite, Web Speech API |
+| **RAG** | FAISS Vector Store, Sentence Transformers |
+| **Communication** | WebSocket (Real-time bidirectional) |
 
-# Create .env file
-copy .env.example .env
-# Edit .env and add your GROQ_API_KEY
-```
+---
 
-### 2. Frontend Setup
-
-```bash
-cd frontend
-npm install
-```
-
-## Running the Application
-
-### Start Backend (Terminal 1)
-```bash
-cd backend
-python main.py
-```
-Server runs at http://localhost:8000
-
-### Start Frontend (Terminal 2)
-```bash
-cd frontend
-npm run dev
-```
-App runs at http://localhost:5173
-
-## Usage
-
-1. Open http://localhost:5173 in Chrome or Edge (best Web Speech API support)
-2. Click **Connect** to establish WebSocket connection
-3. Click the **microphone button** to start voice input
-4. Speak your query
-5. The assistant will respond in text and voice
-
-## Project Structure
+## ⚙️ How It Works
 
 ```
-voice call agent/
+User Speaks → Speech-to-Text → WebSocket → RAG Search → LLM Response → Text-to-Speech
+```
+
+1. **Voice Capture** - Web Speech API transcribes user speech
+2. **Document Search** - FAISS finds relevant company information
+3. **AI Response** - Groq LLM generates accurate answers using context
+4. **Voice Playback** - Browser reads the response aloud
+
+---
+
+## 📂 Project Structure
+
+```
 ├── backend/
-│   ├── main.py           # FastAPI server with WebSocket
-│   ├── agent.py          # LangChain agent with Groq
-│   ├── requirements.txt  # Python dependencies
-│   └── .env.example      # Environment template
+│   ├── main.py          # FastAPI server with WebSocket
+│   ├── agent.py         # RAG agent with LangChain
+│   └── data/            # PDF documents folder
 │
 └── frontend/
-    ├── src/
-    │   ├── App.jsx       # Main React component
-    │   ├── App.css       # Component styles
-    │   ├── hooks/
-    │   │   ├── useWebSocket.js  # WebSocket hook
-    │   │   └── useSpeech.js     # STT/TTS hooks
-    │   └── ...
-    └── ...
+    ├── src/App.jsx      # Main React component
+    └── src/hooks/       # Voice & WebSocket hooks
 ```
 
-## Troubleshooting
+---
 
-- **Microphone not working**: Ensure browser has microphone permissions
-- **Voice not recognized**: Use Chrome or Edge for best Web Speech API support
-- **Backend connection failed**: Check if Python server is running on port 8000
+## 🎯 Use Cases
+
+- 📞 Automated Customer Support
+- 🏢 Company Information Helpdesk
+- 📋 Policy & FAQ Assistant
+- 🎤 Voice-Enabled Knowledge Base
+
+---
+
+## 🔗 Technologies & Concepts
+
+`RAG` `LangChain` `FAISS` `Vector Embeddings` `WebSocket` `Speech Recognition` `Text-to-Speech` `Conversational AI`
+
+---
+
+## 📄 License
+
+MIT License - Feel free to use and modify!
