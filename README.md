@@ -2,12 +2,6 @@
 
 An intelligent voice-enabled customer support agent that answers company-specific questions using **Retrieval-Augmented Generation (RAG)**.
 
-![Voice Agent Demo](https://img.shields.io/badge/AI-Voice%20Agent-purple?style=for-the-badge)
-![Python](https://img.shields.io/badge/Python-3.10+-blue?style=flat-square&logo=python)
-![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
-![LangChain](https://img.shields.io/badge/LangChain-RAG-green?style=flat-square)
-
----
 
 ## 🚀 Overview
 
@@ -46,22 +40,6 @@ User Speaks → Speech-to-Text → WebSocket → RAG Search → LLM Response →
 3. **AI Response** - Groq LLM generates accurate answers using context
 4. **Voice Playback** - Browser reads the response aloud
 
----
-
-## 📂 Project Structure
-
-```
-├── backend/
-│   ├── main.py          # FastAPI server with WebSocket
-│   ├── agent.py         # RAG agent with LangChain
-│   └── data/            # PDF documents folder
-│
-└── frontend/
-    ├── src/App.jsx      # Main React component
-    └── src/hooks/       # Voice & WebSocket hooks
-```
-
----
 
 ## 🎯 Use Cases
 
@@ -78,6 +56,3 @@ User Speaks → Speech-to-Text → WebSocket → RAG Search → LLM Response →
 
 ---
 
-## 📄 License
-
-MIT License - Feel free to use and modify!

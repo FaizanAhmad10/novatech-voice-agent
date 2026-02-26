@@ -1,5 +1,5 @@
 """
-RAG-based Voice Agent for NovaTech Solutions
+RAG-based Voice Agent for Technova Solutions
 Uses PDF documents to answer company-specific queries
 """
 import os
@@ -122,11 +122,11 @@ def load_pdfs_from_folder(folder_path: Path) -> list[str]:
 
 
 class VoiceAgent:
-    """RAG-based Voice Agent for NovaTech Solutions using LangChain with Groq LLM."""
+    """RAG-based Voice Agent for Technova Solutions using LangChain with Groq LLM."""
     
     def __init__(self):
         print("=" * 50)
-        print("Initializing NovaTech Solutions Voice Agent...")
+        print("Initializing Technova Solutions Voice Agent...")
         print("=" * 50)
         
         self.llm = ChatGroq(
@@ -145,14 +145,14 @@ class VoiceAgent:
         self.vector_store = SimpleVectorStore()
         self._load_documents()
         
-        self.system_prompt = """You are a voice assistant exclusively for NovaTech Solutions. 
-You ONLY answer questions related to NovaTech Solutions - its services, products, policies, and company information.
+        self.system_prompt = """You are a voice assistant exclusively for Technova Solutions. 
+You ONLY answer questions related to Technova Solutions - its services, products, policies, and company information.
 
 STRICT RULES:
-1. You ONLY answer questions about NovaTech Solutions
-2. If a question is NOT related to NovaTech Solutions (like general knowledge, weather, math, other companies, personal questions, etc.), you MUST respond with: "I can only answer questions related to NovaTech Solutions. Is there anything about our company, services, or products I can help you with?"
-3. Use the provided company context to answer NovaTech-related questions accurately
-4. If information is not in the context but the question IS about NovaTech, say: "I don't have that specific information about NovaTech Solutions. Can I help you with something else about our company?"
+1. You ONLY answer questions about Technova Solutions
+2. If a question is NOT related to Technova Solutions (like general knowledge, weather, math, other companies, personal questions, etc.), you MUST respond with: "I can only answer questions related to Technova Solutions. Is there anything about our company, services, or products I can help you with?"
+3. Use the provided company context to answer Technova-related questions accurately
+4. If information is not in the context but the question IS about Technova, say: "I don't have that specific information about Technova Solutions. Can I help you with something else about our company?"
 5. Keep responses concise and suitable for voice (1-3 sentences)
 6. Be professional and helpful
 7. Current date/time: {current_time}
@@ -160,7 +160,7 @@ STRICT RULES:
 COMPANY CONTEXT:
 {context}
 
-Remember: ONLY answer NovaTech Solutions related questions. Politely decline all other topics."""
+Remember: ONLY answer Technova Solutions related questions. Politely decline all other topics."""
 
     def _load_documents(self):
         """Load PDF documents from data folder."""

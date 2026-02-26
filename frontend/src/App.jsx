@@ -1,242 +1,235 @@
-import { useState, useEffect, useRef } from 'react';
-import { useWebSocket } from './hooks/useWebSocket';
-import { useSpeechToText, useTextToSpeech } from './hooks/useSpeech';
-import './App.css';
-
-// Generate unique client ID
-const clientId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-// Use environment variable for backend URL (falls back to localhost for development)
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
-const WS_URL = `${WS_BASE_URL}/ws/${clientId}`;
+import { useState, useRef, useEffect } from 'react'
+import axios from 'axios'
+import { Mic, MicOff, Send, Volume2, Bot, User } from 'lucide-react'
+import './App.css'
 
 function App() {
-  const [textInput, setTextInput] = useState('');
-  const [autoSpeak, setAutoSpeak] = useState(true);
-  const messagesEndRef = useRef(null);
-  const lastSpokenRef = useRef(null);
+  const [messages, setMessages] = useState([])
+  const [isRecording, setIsRecording] = useState(false)
+  const [inputText, setInputText] = useState('')
+  const [isConnected, setIsConnected] = useState(false)
 
-  // WebSocket connection
-  const {
-    isConnected,
-    messages,
-    isTyping,
-    connect,
-    disconnect,
-    sendMessage,
-    clearHistory
-  } = useWebSocket(WS_URL);
+  const wsRef = useRef(null)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
 
-  // Speech hooks
-  const {
-    isListening,
-    transcript,
-    interimTranscript,
-    isSupported: sttSupported,
-    startListening,
-    stopListening
-  } = useSpeechToText();
-
-  const {
-    isSpeaking,
-    isSupported: ttsSupported,
-    speak,
-    stop: stopSpeaking
-  } = useTextToSpeech();
-
-  // Auto-scroll to bottom
+  // Setup WebSocket connection
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    const clientId = Math.random().toString(36).substring(7)
+    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/${clientId}`)
 
-  // Send transcript when speech recognition completes
-  useEffect(() => {
-    if (transcript && !isListening) {
-      sendMessage(transcript);
+    ws.onopen = () => {
+      console.log('Connected to WebSocket')
+      setIsConnected(true)
     }
-  }, [transcript, isListening, sendMessage]);
 
-  // Auto-speak assistant responses
-  useEffect(() => {
-    if (autoSpeak && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.role === 'assistant' && lastMessage.content !== lastSpokenRef.current) {
-        lastSpokenRef.current = lastMessage.content;
-        speak(lastMessage.content);
+    ws.onmessage = async (event) => {
+      const data = JSON.parse(event.data)
+
+      if (data.type === 'response' || data.type === 'connected') {
+        setMessages(prev => [...prev, { text: data.content, isAgent: true, audio: data.audio }])
+        // Automatically play TTS if provided in the WebSocket message
+        if (data.audio) {
+          playAudioBase64(data.audio)
+        }
+      } else if (data.type === 'typing') {
+        // Could visually represent typing here
+      } else if (data.type === 'error') {
+        console.error("Backend error:", data.content)
+        setMessages(prev => [...prev, { text: `Error: ${data.content}`, isAgent: true }])
       }
     }
-  }, [messages, autoSpeak, speak]);
 
-  const handleSendText = (e) => {
-    e.preventDefault();
-    if (textInput.trim()) {
-      sendMessage(textInput.trim());
-      setTextInput('');
+    ws.onclose = () => {
+      console.log('Disconnected from WebSocket')
+      setIsConnected(false)
     }
-  };
 
-  const handleVoiceButton = () => {
-    if (isListening) {
-      stopListening();
+    wsRef.current = ws
+
+    return () => {
+      if (ws) ws.close()
+    }
+  }, [])
+
+  // Setup global audio element
+  useEffect(() => {
+    const globalAudio = new Audio()
+    globalAudio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"
+    window.globalAgentAudio = globalAudio
+  }, [])
+
+  // Handle Base64 Audio Playback locally
+  const playAudioBase64 = (audioBase64) => {
+    if (!audioBase64) return
+    const audioUrl = `data:audio/mp3;base64,${audioBase64}`
+
+    if (window.globalAgentAudio) {
+      window.globalAgentAudio.src = audioUrl
+      window.globalAgentAudio.play().catch(e => console.error("Autoplay blocked:", e))
     } else {
-      if (isSpeaking) stopSpeaking();
-      startListening();
+      const audio = new Audio(audioUrl)
+      audio.play().catch(e => console.error("Autoplay blocked:", e))
     }
-  };
+  }
+
+  // Handle Text Input Submission
+  const handleSubmitText = (e) => {
+    e.preventDefault()
+
+    // Unlock autoplay from user gesture
+    if (window.globalAgentAudio && window.globalAgentAudio.paused) {
+      window.globalAgentAudio.play().catch(() => { });
+    }
+
+    if (!inputText.trim() || !wsRef.current) return
+
+    const userMessage = inputText.trim()
+    setMessages(prev => [...prev, { text: userMessage, isAgent: false }])
+
+    wsRef.current.send(JSON.stringify({
+      type: 'message',
+      content: userMessage
+    }))
+
+    setInputText('')
+  }
+
+  // Handle Recording Start/Stop
+  const toggleRecording = async () => {
+    // If the agent is currently speaking, stop it
+    if (window.globalAgentAudio && !window.globalAgentAudio.paused) {
+      window.globalAgentAudio.pause();
+      window.globalAgentAudio.currentTime = 0;
+    }
+    // Quickly touch play then pause to satisfy user gesture requirement without actually making noise
+    else if (window.globalAgentAudio) {
+      window.globalAgentAudio.play().then(() => {
+        window.globalAgentAudio.pause();
+        window.globalAgentAudio.currentTime = 0;
+      }).catch(() => { });
+    }
+
+    if (isRecording) {
+      // Stop recording
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        const mediaRecorder = new MediaRecorder(stream)
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data)
+          }
+        }
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+          audioChunksRef.current = [] // reset
+
+          // Send to STT
+          await processAudio(audioBlob)
+
+          // Stop all mic tracks
+          stream.getTracks().forEach(track => track.stop())
+        }
+
+        mediaRecorderRef.current = mediaRecorder
+        mediaRecorder.start()
+        setIsRecording(true)
+      } catch (error) {
+        console.error('Error accessing microphone:', error)
+        alert('Please allow microphone access to use voice features.')
+      }
+    }
+  }
+
+  // Handle STT Processing
+  const processAudio = async (audioBlob) => {
+    try {
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'recording.webm')
+
+      const response = await axios.post('http://127.0.0.1:8000/api/stt', formData)
+
+      if (response.data && response.data.text) {
+        const transcribedText = response.data.text.trim()
+        if (transcribedText) {
+          // Display the recognized text
+          setMessages(prev => [...prev, { text: transcribedText, isAgent: false }])
+
+          // Send recognized text to WebSocket for LLM processing
+          if (wsRef.current) {
+            wsRef.current.send(JSON.stringify({
+              type: 'message',
+              content: transcribedText
+            }))
+          }
+        }
+      }
+    } catch (error) {
+      console.error('STT Error:', error)
+      setMessages(prev => [...prev, { text: 'Sorry, could not process audio.', isAgent: true }])
+    }
+  }
 
   return (
-    <div className="app">
-      {/* Background effects */}
-      <div className="bg-gradient"></div>
-      <div className="bg-glow"></div>
-
-      {/* Header */}
-      <header className="header">
-        <div className="header-content">
-          <div className="logo">
-            <div className="logo-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </div>
-            <h1>NovaTech Solutions</h1>
-          </div>
-          <div className="connection-status">
-            <span className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}></span>
-            <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
-          </div>
+    <div className="app-container">
+      <header className="app-header">
+        <h1>Technova Voice Agent</h1>
+        <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+          {isConnected ? 'Connected' : 'Disconnected'}
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="main-content">
-        {/* Chat Messages */}
-        <div className="chat-container">
-          <div className="messages">
-            {messages.map((msg, index) => (
-              <div key={index} className={`message ${msg.role}`}>
-                <div className="message-avatar">
-                  {msg.role === 'user' ? '👤' : '🏢'}
-                </div>
-                <div className="message-content">
-                  <span className="message-role">
-                    {msg.role === 'user' ? 'You' : 'NovaTech'}
-                  </span>
-                  <p>{msg.content}</p>
-                </div>
+      <main className="chat-container">
+        <div className="messages-area">
+          {messages.map((message, index) => (
+            <div key={index} className={`message-wrapper ${message.isAgent ? 'agent' : 'user'}`}>
+              <div className="message-avatar">
+                {message.isAgent ? <Bot size={20} /> : <User size={20} />}
               </div>
-            ))}
-            {isTyping && (
-              <div className="message assistant">
-                <div className="message-avatar">🏢</div>
-                <div className="message-content">
-                  <span className="message-role">NovaTech</span>
-                  <div className="typing-indicator">
-                    <span></span><span></span><span></span>
-                  </div>
-                </div>
+              <div className="message-bubble">
+                <p>{message.text}</p>
+                {message.isAgent && message.audio && (
+                  <button className="play-btn" onClick={() => playAudioBase64(message.audio)} title="Play Audio">
+                    <Volume2 size={14} />
+                  </button>
+                )}
               </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Voice Transcript */}
-          {(isListening || interimTranscript) && (
-            <div className="transcript-bar">
-              <span className="listening-indicator">
-                <span className="pulse"></span>
-                Listening...
-              </span>
-              <span className="transcript-text">
-                {interimTranscript || 'Speak now...'}
-              </span>
             </div>
-          )}
+          ))}
+          {/* Invisible element to scroll to bottom could go here */}
         </div>
 
-        {/* Input Area */}
         <div className="input-area">
-          <div className="input-container">
-            {/* Voice Button */}
-            <button
-              className={`voice-btn ${isListening ? 'listening' : ''} ${isSpeaking ? 'speaking' : ''}`}
-              onClick={handleVoiceButton}
-              disabled={!isConnected || !sttSupported}
-              title={isListening ? 'Stop listening' : 'Start voice input'}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                {isListening ? (
-                  <rect x="6" y="4" width="12" height="16" rx="2" />
-                ) : (
-                  <>
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                    <line x1="12" y1="19" x2="12" y2="23" />
-                    <line x1="8" y1="23" x2="16" y2="23" />
-                  </>
-                )}
-              </svg>
-              {isListening && <span className="voice-ripple"></span>}
-            </button>
+          <button
+            className={`record-btn ${isRecording ? 'recording' : ''}`}
+            onClick={toggleRecording}
+            title={isRecording ? "Stop Recording" : "Start Recording"}
+          >
+            {isRecording ? <MicOff size={24} /> : <Mic size={24} />}
+          </button>
 
-            {/* Text Input */}
-            <form onSubmit={handleSendText} className="text-input-form">
-              <input
-                type="text"
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Ask about NovaTech Solutions..."
-                disabled={!isConnected}
-              />
-              <button
-                type="submit"
-                disabled={!isConnected || !textInput.trim()}
-                className="send-btn"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
-              </button>
-            </form>
-          </div>
-
-          {/* Controls */}
-          <div className="controls">
-            <button
-              className={`control-btn ${isConnected ? 'connected' : ''}`}
-              onClick={isConnected ? disconnect : connect}
-            >
-              {isConnected ? 'Disconnect' : 'Connect'}
+          <form onSubmit={handleSubmitText} className="text-form">
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Type your message..."
+              disabled={isRecording}
+            />
+            <button type="submit" disabled={!inputText.trim() || isRecording}>
+              <Send size={20} />
             </button>
-            <button
-              className="control-btn"
-              onClick={clearHistory}
-              disabled={!isConnected}
-            >
-              Clear History
-            </button>
-            <label className="control-toggle">
-              <input
-                type="checkbox"
-                checked={autoSpeak}
-                onChange={(e) => setAutoSpeak(e.target.checked)}
-              />
-              <span>Auto-speak responses</span>
-            </label>
-            {isSpeaking && (
-              <button className="control-btn stop-btn" onClick={stopSpeaking}>
-                🔊 Stop Speaking
-              </button>
-            )}
-          </div>
+          </form>
         </div>
       </main>
     </div>
-  );
+  )
 }
 
-export default App;
+export default App
